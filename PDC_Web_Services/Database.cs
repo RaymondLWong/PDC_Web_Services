@@ -8,6 +8,7 @@ namespace PDC_Web_Services {
     public class Database {
 
         private static MySqlConnection con = null;
+        private static int lastInsertID = -1;
 
         public static MySqlConnection getDBConection() {
             if (con == null) {
@@ -43,6 +44,9 @@ INSERT INTO notifications (
             try {
                 con.Open();
                 cmd.ExecuteNonQuery();
+
+                // http://stackoverflow.com/questions/15373851/c-sharp-get-insert-id-with-auto-increment
+                lastInsertID = (int)cmd.LastInsertedId;
                 success = true;
             } catch (MySqlException MySqlE) {
                 throw MySqlE;
@@ -99,21 +103,51 @@ INSERT INTO events (
             // establish whether this is creating a new notification or adding to an existing one
             if (notificationID == -1) {
                 bool groupCreated = createNewNotification(roomID);
+                int newNotificationID = lastInsertID;
+                Console.WriteLine($"new notification: {newNotificationID}");
 
                 if (groupCreated) {
-
+                    return createReading(sensorID, value, newNotificationID);
+                } else {
+                    Console.WriteLine("Error: Notification group could not be created.");
+                    return false;
                 }
             } else {
-
+                return createReading(sensorID, value, notificationID);
             }
-
-            
-
-            return false; // TODO: change
         }
 
         public static bool toggleAlarmState(int homeID, bool enable) {
-            return false;
+            bool success = false;
+
+            MySqlConnection con = getDBConection();
+
+            MySqlCommand cmd = new MySqlCommand(@"
+UPDATE home 
+SET alarmState = @state
+WHERE homeID = @id
+", con);
+
+            MySqlParameter paramState = new MySqlParameter("@state", MySqlDbType.Int32);
+            MySqlParameter paramID = new MySqlParameter("@id", MySqlDbType.Enum);
+
+            paramID.Value = homeID;
+
+            cmd.Parameters.Add(paramState);
+            cmd.Parameters.Add(paramID);
+
+            try {
+                con.Open();
+                cmd.ExecuteNonQuery();
+
+                success = true;
+            } catch (MySqlException MySqlE) {
+                throw MySqlE;
+            } finally {
+                con.Close();
+            }
+
+            return success;
         }
     }
 }

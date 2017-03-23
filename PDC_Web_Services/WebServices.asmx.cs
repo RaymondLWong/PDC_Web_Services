@@ -27,10 +27,8 @@ namespace PDC_Web_Services {
         }
 
         [WebMethod]
-        public bool submitReadingAndGroup(int homeID, int roomID, int sensorID, string value, int notificationID = -1) {
-            bool success = false;
-
-            return success;
+        public bool submitReadingAndCreateGroup(int roomID, int sensorID, string value, int notificationID = -1) {
+            return Database.submitReadingAndCreateGroup(roomID, sensorID, value, notificationID);
         }
 
         [WebMethod]
@@ -40,18 +38,13 @@ namespace PDC_Web_Services {
 
         [WebMethod]
         public bool resetSystem(int homeID) {
-            bool success = false;
-
-            return success;
+            // assuming resetting the system rearms it (true = enable, false = disable)
+            return Database.toggleAlarmState(homeID, true);
         }
 
         [WebMethod]
         public bool toogleSystem(int homeID, bool enable) {
-            bool success = false;
-
-            Database.toggleAlarmState(homeID, enable);
-
-            return success;
+            return Database.toggleAlarmState(homeID, enable);
         }
     }
 }
