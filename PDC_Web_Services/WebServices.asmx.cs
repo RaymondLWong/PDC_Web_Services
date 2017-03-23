@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Web;
-using System.Web.Services;
-using System.Xml;
+﻿using System.Web.Services;
 
 namespace PDC_Web_Services {
     /// <summary>
@@ -32,8 +27,8 @@ namespace PDC_Web_Services {
         }
 
         [WebMethod]
-        public XmlDocument checkHome(int homeID) {
-            return new XmlDocument();
+        public string checkHome(int homeID) {
+            return Database.getHomeState(homeID);
         }
 
         [WebMethod]

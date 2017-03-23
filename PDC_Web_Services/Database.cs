@@ -131,6 +131,7 @@ WHERE homeID = @id
             MySqlParameter paramState = new MySqlParameter("@state", MySqlDbType.Int32);
             MySqlParameter paramID = new MySqlParameter("@id", MySqlDbType.Enum);
 
+            paramState.Value = (enable) ? 1 : 2;
             paramID.Value = homeID;
 
             cmd.Parameters.Add(paramState);
@@ -148,6 +149,44 @@ WHERE homeID = @id
             }
 
             return success;
+        }
+
+        public static string getHomeState(int homeID) {
+            MySqlConnection con = getDBConection();
+
+            MySqlCommand cmd = new MySqlCommand(@"
+SELECT alarmState
+FROM home
+WHERE homeID = @home
+", con);
+
+            MySqlParameter paramID = new MySqlParameter("@home", MySqlDbType.Int32);
+
+            paramID.Value = homeID;
+            cmd.Parameters.Add(paramID);
+
+            string state = "unknown";
+
+            try {
+                con.Open();
+                cmd.ExecuteNonQuery();
+
+                MySqlDataReader reader = cmd.ExecuteReader();
+
+                if (reader.Read()) {
+                    state = reader.GetString(0);
+                } else {
+                    Console.WriteLine(String.Format("System state for home '{0}' not found.", homeID));
+                }
+
+                reader.Close();
+            } catch (MySqlException MySqlE) {
+                throw MySqlE;
+            } finally {
+                con.Close();
+            }
+
+            return state;
         }
     }
 }
