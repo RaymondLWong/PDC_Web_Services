@@ -33,7 +33,7 @@ namespace PDC_Web_Services {
 
         [WebMethod]
         public bool resetSystem(int homeID) {
-            // assuming resetting the system rearms it (true = enable, false = disable)
+            Database.toggleAlarmState(homeID, false);
             return Database.toggleAlarmState(homeID, true);
         }
 

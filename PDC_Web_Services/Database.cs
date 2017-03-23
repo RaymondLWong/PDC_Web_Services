@@ -18,6 +18,48 @@ namespace PDC_Web_Services {
             return con;
         }
 
+        public static bool createSystemStateChangeEvent(int homeID, int state) {
+            bool success = false;
+
+            MySqlConnection con = getDBConection();
+
+            MySqlCommand cmd = new MySqlCommand(@"
+INSERT INTO alarmlogs (
+	homeID,
+	timestamp,
+    state
+) VALUES (
+	@id,
+	@ts,
+    @state
+)", con);
+
+            MySqlParameter paramHomeID = new MySqlParameter("@id", MySqlDbType.Int32);
+            MySqlParameter paramTimestamp = new MySqlParameter("@ts", MySqlDbType.DateTime);
+            MySqlParameter paramState = new MySqlParameter("@state", MySqlDbType.Enum);
+
+            paramHomeID.Value = homeID;
+            paramTimestamp.Value = DateTime.Now;
+            paramState.Value = state;
+
+            cmd.Parameters.Add(paramHomeID);
+            cmd.Parameters.Add(paramTimestamp);
+            cmd.Parameters.Add(paramState);
+
+            try {
+                con.Open();
+                cmd.ExecuteNonQuery();
+
+                success = true;
+            } catch (MySqlException MySqlE) {
+                throw MySqlE;
+            } finally {
+                con.Close();
+            }
+
+            return success;
+        }
+
         public static bool createNewNotification(int roomID) {
             bool success = false;
 
@@ -131,7 +173,9 @@ WHERE homeID = @id
             MySqlParameter paramState = new MySqlParameter("@state", MySqlDbType.Int32);
             MySqlParameter paramID = new MySqlParameter("@id", MySqlDbType.Enum);
 
-            paramState.Value = (enable) ? 1 : 2;
+            int state = (enable) ? 1 : 2;
+
+            paramState.Value = state;
             paramID.Value = homeID;
 
             cmd.Parameters.Add(paramState);
@@ -146,6 +190,11 @@ WHERE homeID = @id
                 throw MySqlE;
             } finally {
                 con.Close();
+            }
+
+            if (success) {
+                // log the change in state
+                success = createSystemStateChangeEvent(homeID, state);
             }
 
             return success;
