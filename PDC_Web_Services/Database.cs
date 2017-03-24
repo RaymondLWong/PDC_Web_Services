@@ -215,12 +215,7 @@ SELECT * FROM sensorlogs WHERE sensorID =
                 con.Open();
                 cmd.ExecuteNonQuery();
 
-                MySqlDataAdapter dataAdptr = new MySqlDataAdapter();
-                dataAdptr.SelectCommand = cmd;
-                DataSet ds = new DataSet(SENSOR_LOG_TABLE_NAME);
-                dataAdptr.Fill(ds, SENSOR_LOG_TABLE_NAME);
-
-                xmlDom.LoadXml(ds.GetXml());
+                xmlDom.LoadXml(dumpResultsToXML(cmd));
 
             } catch (MySqlException MySqlE) {
                 throw MySqlE;
@@ -228,7 +223,7 @@ SELECT * FROM sensorlogs WHERE sensorID =
                 con.Close();
             }
 
-            
+
             return xmlDom;
         }
 
@@ -309,12 +304,7 @@ SELECT * FROM sensorlogs WHERE sensorID =
                     con.Open();
                     cmd.ExecuteNonQuery();
 
-                    MySqlDataAdapter dataAdptr = new MySqlDataAdapter();
-                    dataAdptr.SelectCommand = cmd;
-                    DataSet ds = new DataSet(SENSOR_LOG_TABLE_NAME);
-                    dataAdptr.Fill(ds, SENSOR_LOG_TABLE_NAME);
-
-                    xmlDom.LoadXml(ds.GetXml());
+                    xmlDom.LoadXml(dumpResultsToXML(cmd));
 
                 } catch (MySqlException MySqlE) {
                     throw MySqlE;
@@ -324,6 +314,14 @@ SELECT * FROM sensorlogs WHERE sensorID =
             }
 
             return xmlDom;
+        }
+
+        private static string dumpResultsToXML(MySqlCommand cmd) {
+            MySqlDataAdapter dataAdptr = new MySqlDataAdapter();
+            dataAdptr.SelectCommand = cmd;
+            DataSet ds = new DataSet(SENSOR_LOG_TABLE_NAME);
+            dataAdptr.Fill(ds, SENSOR_LOG_TABLE_NAME);
+            return ds.GetXml();
         }
     }
 }
