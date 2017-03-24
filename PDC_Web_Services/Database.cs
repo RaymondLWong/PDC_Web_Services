@@ -1,14 +1,17 @@
 ﻿using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Web;
+using System.Xml;
 
 namespace PDC_Web_Services {
     public class Database {
 
+        private const string SENSOR_LOG_TABLE_NAME = "sensorlogs";
+
         private static MySqlConnection con = null;
-        private static int lastInsertID = -1;
 
         public static MySqlConnection getDBConection() {
             if (con == null) {
@@ -24,7 +27,7 @@ namespace PDC_Web_Services {
             MySqlConnection con = getDBConection();
 
             MySqlCommand cmd = new MySqlCommand(@"
-INSERT INTO alarmlogs (
+INSERT INTO homelogs (
 	homeID,
 	timestamp,
     state
@@ -60,70 +63,31 @@ INSERT INTO alarmlogs (
             return success;
         }
 
-        public static bool createNewNotification(int roomID) {
+        public static bool createReading(int sensorID, string value) {
             bool success = false;
 
             MySqlConnection con = getDBConection();
 
             MySqlCommand cmd = new MySqlCommand(@"
-INSERT INTO notifications (
-	timestamp,
-	roomID
-) VALUES (
-	@ts,
-	@room
-)", con);
-
-            MySqlParameter paramTimestamp = new MySqlParameter("@ts", MySqlDbType.DateTime);
-            MySqlParameter paramRoomID = new MySqlParameter("@room", MySqlDbType.Int32);
-
-            paramTimestamp.Value = DateTime.Now;
-            paramRoomID.Value = roomID;
-
-            cmd.Parameters.Add(paramTimestamp);
-            cmd.Parameters.Add(paramRoomID);
-
-            try {
-                con.Open();
-                cmd.ExecuteNonQuery();
-
-                // http://stackoverflow.com/questions/15373851/c-sharp-get-insert-id-with-auto-increment
-                lastInsertID = (int)cmd.LastInsertedId;
-                success = true;
-            } catch (MySqlException MySqlE) {
-                throw MySqlE;
-            } finally {
-                con.Close();
-            }
-
-            return success;
-        }
-
-        public static bool createReading(int sensorID, string value, int notificationID) {
-            bool success = false;
-
-            MySqlConnection con = getDBConection();
-
-            MySqlCommand cmd = new MySqlCommand(@"
-INSERT INTO events (
-    notificationID,
+INSERT INTO sensorlogs (
+    timestamp,
     sensorID, 
     sensorValue
 ) VALUES (
-    @groupID,
+    @ts,
     @sensorID,
     @sensorValue
 )", con);
 
-            MySqlParameter paramGroupID = new MySqlParameter("@groupID", MySqlDbType.Int32);
+            MySqlParameter paramTimestamp = new MySqlParameter("@ts", MySqlDbType.DateTime);
             MySqlParameter paramSensorID = new MySqlParameter("@sensorID", MySqlDbType.Int32);
             MySqlParameter paramSensorValue = new MySqlParameter("@sensorValue", MySqlDbType.VarChar);
 
-            paramGroupID.Value = notificationID;
+            paramTimestamp.Value = DateTime.Now;
             paramSensorID.Value = sensorID;
             paramSensorValue.Value = value;
 
-            cmd.Parameters.Add(paramGroupID);
+            cmd.Parameters.Add(paramTimestamp);
             cmd.Parameters.Add(paramSensorID);
             cmd.Parameters.Add(paramSensorValue);
 
@@ -139,24 +103,6 @@ INSERT INTO events (
             }
 
             return success;
-        }
-
-        public static bool submitReadingAndCreateGroup(int roomID, int sensorID, string value, int notificationID) {
-            // establish whether this is creating a new notification or adding to an existing one
-            if (notificationID == -1) {
-                bool groupCreated = createNewNotification(roomID);
-                int newNotificationID = lastInsertID;
-                Console.WriteLine($"new notification: {newNotificationID}");
-
-                if (groupCreated) {
-                    return createReading(sensorID, value, newNotificationID);
-                } else {
-                    Console.WriteLine("Error: Notification group could not be created.");
-                    return false;
-                }
-            } else {
-                return createReading(sensorID, value, notificationID);
-            }
         }
 
         public static bool toggleAlarmState(int homeID, bool enable) {
@@ -236,6 +182,53 @@ WHERE homeID = @home
             }
 
             return state;
+        }
+
+        public static XmlDocument getEventsWithinTimeframe(int homeID, DateTime start, DateTime end) {
+            MySqlConnection con = getDBConection();
+
+            MySqlCommand cmd = new MySqlCommand(@"
+SELECT * FROM sensorlogs WHERE sensorID = 
+    ANY ( SELECT sensorID FROM sensors WHERE roomID = 
+            ANY (SELECT roomID FROM rooms WHERE homeID = @homeID)
+        )
+    AND timestamp BETWEEN @start AND @end
+", con);
+
+            MySqlParameter paramHomeID = new MySqlParameter("@homeID", MySqlDbType.Int32);
+            MySqlParameter paramStartTime = new MySqlParameter("@start", MySqlDbType.DateTime);
+            MySqlParameter paramEndTime = new MySqlParameter("@end", MySqlDbType.DateTime);
+
+            paramHomeID.Value = homeID;
+            paramStartTime.Value = start;
+            paramEndTime.Value = end;
+
+            cmd.Parameters.Add(paramHomeID);
+            cmd.Parameters.Add(paramStartTime);
+            cmd.Parameters.Add(paramEndTime);
+
+            XmlDocument xmlDom = new XmlDocument();
+            xmlDom.AppendChild(xmlDom.CreateElement(SENSOR_LOG_TABLE_NAME));
+
+            try {
+                con.Open();
+                cmd.ExecuteNonQuery();
+
+                MySqlDataAdapter dataAdptr = new MySqlDataAdapter();
+                dataAdptr.SelectCommand = cmd;
+                DataSet ds = new DataSet(SENSOR_LOG_TABLE_NAME);
+                dataAdptr.Fill(ds, SENSOR_LOG_TABLE_NAME);
+
+                xmlDom.LoadXml(ds.GetXml());
+
+            } catch (MySqlException MySqlE) {
+                throw MySqlE;
+            } finally {
+                con.Close();
+            }
+
+            
+            return xmlDom;
         }
     }
 }

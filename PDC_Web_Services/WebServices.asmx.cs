@@ -1,4 +1,6 @@
-﻿using System.Web.Services;
+﻿using System;
+using System.Web.Services;
+using System.Xml;
 
 namespace PDC_Web_Services {
     /// <summary>
@@ -12,18 +14,8 @@ namespace PDC_Web_Services {
     public class WebServices : System.Web.Services.WebService {
 
         [WebMethod]
-        public bool createNewNotification(int roomID) {
-            return Database.createNewNotification(roomID);
-        }
-
-        [WebMethod]
-        public bool createReading(int sensorID, string value, int notificationID) {
-            return Database.createReading(sensorID, value, notificationID);
-        }
-
-        [WebMethod]
-        public bool submitReadingAndCreateGroup(int roomID, int sensorID, string value, int notificationID = -1) {
-            return Database.submitReadingAndCreateGroup(roomID, sensorID, value, notificationID);
+        public bool submitReading(int sensorID, string value) {
+            return Database.createReading(sensorID, value);
         }
 
         [WebMethod]
@@ -40,6 +32,16 @@ namespace PDC_Web_Services {
         [WebMethod]
         public bool toogleSystem(int homeID, bool enable) {
             return Database.toggleAlarmState(homeID, enable);
+        }
+
+        [WebMethod]
+        public XmlDocument fetchEventsWithinTimeframe(int homeID, DateTime start, DateTime end) {
+            return Database.getEventsWithinTimeframe(homeID, start, end);
+        }
+
+        [WebMethod]
+        public XmlDocument fetchEventsSinceSystemArmed(int homeID) {
+            return null;
         }
     }
 }
