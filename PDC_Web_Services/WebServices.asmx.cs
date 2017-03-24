@@ -41,7 +41,12 @@ namespace PDC_Web_Services {
 
         [WebMethod]
         public XmlDocument fetchEventsSinceSystemArmed(int homeID) {
-            return null;
+            return Database.getEventsSinceSystemArmed(homeID);
+        }
+
+        [WebMethod]
+        public DateTime getSystemStartupTime(int homeID) {
+            return Database.getRecentSystemStartupTime(homeID);
         }
     }
 }

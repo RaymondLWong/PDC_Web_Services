@@ -10,6 +10,7 @@ namespace PDC_Web_Services {
     public class Database {
 
         private const string SENSOR_LOG_TABLE_NAME = "sensorlogs";
+        private static DateTime INVALID_TIMESTAMP = new DateTime(0);
 
         private static MySqlConnection con = null;
 
@@ -228,6 +229,100 @@ SELECT * FROM sensorlogs WHERE sensorID =
             }
 
             
+            return xmlDom;
+        }
+
+        public static DateTime getRecentSystemStartupTime(int homeID) {
+            MySqlConnection con = getDBConection();
+
+            MySqlCommand cmd = new MySqlCommand(@"
+SELECT timestamp 
+FROM homelogs 
+WHERE 
+    homeID = @homeID AND 
+    state = 'Enabled' 
+ORDER BY timestamp 
+DESC LIMIT 1
+", con);
+
+            MySqlParameter paramHomeID = new MySqlParameter("@homeID", MySqlDbType.Int32);
+
+            paramHomeID.Value = homeID;
+
+            cmd.Parameters.Add(paramHomeID);
+
+
+            DateTime startupTime = INVALID_TIMESTAMP;
+            try {
+                con.Open();
+                cmd.ExecuteNonQuery();
+
+                MySqlDataReader reader = cmd.ExecuteReader();
+
+                if (reader.Read()) {
+                    startupTime = reader.GetDateTime(0);
+                }
+
+                reader.Close();
+
+            } catch (MySqlException MySqlE) {
+                throw MySqlE;
+            } finally {
+                con.Close();
+            }
+
+
+            return startupTime;
+        }
+
+        public static XmlDocument getEventsSinceSystemArmed(int homeID) {
+            // get the time when the system started up
+            // then feed it into a query to get the sensor logs
+
+            DateTime startupTime = getRecentSystemStartupTime(homeID);
+
+            XmlDocument xmlDom = new XmlDocument();
+            xmlDom.AppendChild(xmlDom.CreateElement(SENSOR_LOG_TABLE_NAME));
+
+            http://stackoverflow.com/questions/3059497/how-to-compare-datetime-in-c
+            if (startupTime != INVALID_TIMESTAMP) {
+                MySqlConnection con = getDBConection();
+
+                MySqlCommand cmd = new MySqlCommand(@"
+SELECT * FROM sensorlogs WHERE sensorID = 
+    ANY ( SELECT sensorID FROM sensors WHERE roomID = 
+            ANY (SELECT roomID FROM rooms WHERE homeID = @homeID)
+        )
+    AND timestamp >= @start
+", con);
+
+                MySqlParameter paramHomeID = new MySqlParameter("@homeID", MySqlDbType.Int32);
+                MySqlParameter paramStartTime = new MySqlParameter("@start", MySqlDbType.DateTime);
+
+                paramHomeID.Value = homeID;
+                paramStartTime.Value = startupTime;
+
+                cmd.Parameters.Add(paramHomeID);
+                cmd.Parameters.Add(paramStartTime);
+
+                try {
+                    con.Open();
+                    cmd.ExecuteNonQuery();
+
+                    MySqlDataAdapter dataAdptr = new MySqlDataAdapter();
+                    dataAdptr.SelectCommand = cmd;
+                    DataSet ds = new DataSet(SENSOR_LOG_TABLE_NAME);
+                    dataAdptr.Fill(ds, SENSOR_LOG_TABLE_NAME);
+
+                    xmlDom.LoadXml(ds.GetXml());
+
+                } catch (MySqlException MySqlE) {
+                    throw MySqlE;
+                } finally {
+                    con.Close();
+                }
+            }
+
             return xmlDom;
         }
     }
